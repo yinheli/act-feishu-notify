@@ -1,0 +1,52 @@
+name: feishu notify
+description: send feishu notification
+inputs:
+  token:
+    description: 'feishu bot token'
+    required: true
+  status:
+    description: 'job status'
+    required: false
+  message:
+    description: 'message'
+    required: false
+runs:
+  using: composite
+  steps:
+    - shell: python
+      env:
+        INPUT_TOKEN: ${{ inputs.token }}
+        INPUT_MESSAGE: ${{ inputs.message }}
+        INPUT_STATUS: ${{ inputs.status }}
+      run: |
+        import os
+        import subprocess
+
+        token = os.environ["INPUT_TOKEN"]
+        message = os.environ["INPUT_MESSAGE"]
+
+        content = message
+        if not content:
+          status = os.environ["INPUT_STATUS"]
+          reaction = "🎉" if status == "success" else "👎"
+
+          workflow_url = f"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          content = f"【CI】#${{ github.run_number }} {reaction} ${{ github.repository }} ${{ github.ref_name }} {status} {workflow_url}"
+
+        print(f"send feishu message: {content}")
+
+        subprocess.run(
+          [
+            "curl",
+            "-X",
+            "POST",
+            "-H",
+            "Content-type: application/json",
+            "-d",
+            f'{{"msg_type":"text","content":{{"text":"{content}"}}}}',
+            f"https://open.feishu.cn/open-apis/bot/v2/hook/{token}",
+          ],
+          stdout=subprocess.DEVNULL,
+          stderr=subprocess.DEVNULL,
+        )
+
